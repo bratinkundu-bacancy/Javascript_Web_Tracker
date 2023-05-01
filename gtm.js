@@ -151,7 +151,7 @@ events.forEach(function (e) {
             }
         }
         if (e === 'scroll') {
-            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
+            if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight) {
                 bottom_page_visit_count++;
                 if (bottom_page_visit_count > 2) {
                     bottom_page_visit_count = 0;

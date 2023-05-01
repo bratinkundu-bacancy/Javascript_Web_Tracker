@@ -150,7 +150,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 document.getElementById("click").innerHTML = total_click_count
             }
             if (e === 'scroll') {
-                if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
+                console.log(bottom_page_visit_count)
+                if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight) {
                     bottom_page_visit_count++;
                     if (bottom_page_visit_count > 2) {
                         bottom_page_visit_count = 0;
