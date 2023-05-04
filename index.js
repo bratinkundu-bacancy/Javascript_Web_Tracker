@@ -187,7 +187,6 @@ function generateDeviceFingerprint() {
     const language = navigator.language;
     const colorDepth = window.screen.colorDepth;
     const deviceMemory = navigator.deviceMemory;
-    console.log(navigator)
     const hardwareConcurrency = navigator.hardwareConcurrency;
     const platform = os_version;
     const plugins = getPlugins();
@@ -196,7 +195,6 @@ function generateDeviceFingerprint() {
 
     // Hash the collected data using a hashing algorithm
     const dataToHash = `${userAgent}${language}${colorDepth}${deviceMemory}${hardwareConcurrency}${platform}${plugins}${canvasFingerprint}${webglFingerprint}`;
-    console.log(dataToHash)
     const hashedData = sha256(dataToHash);
 
     return hashedData
