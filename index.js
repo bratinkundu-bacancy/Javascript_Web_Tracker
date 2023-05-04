@@ -45,6 +45,8 @@ var browser_full_version = parseFloat(window.navigator.appVersion)
 var browser_major_version = parseInt(navigator.appVersion)
 var screenOrientation = screen.orientation.type
 var deviceType = window.navigator.userAgentData.mobile ? "Mobile" : "Desktop";
+var device_fingerprint = ''
+generateDeviceFingerprint().then(fg => { device_fingerprint = fg })
 
 
 function getBrowserName() {
@@ -105,6 +107,7 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("deviceType").innerHTML = deviceType;
     document.getElementById("browser_full_version").innerHTML = browser_full_version;
     document.getElementById("browser_name").innerHTML = getBrowserName()
+    document.getElementById("fingerprint").innerHTML = device_fingerprint;
 
     events.forEach(function (e) {
         document.addEventListener(e, function () {
@@ -177,3 +180,74 @@ function formatTime(ms) {
 
 
 // Browser version, OS version, screen resolution, Major & minor version of browser, mobile version (portrait/landscape), deviceType (mobile)
+
+function generateDeviceFingerprint() {
+
+    const userAgent = navigator.userAgent;
+    const language = navigator.language;
+    const colorDepth = window.screen.colorDepth;
+    const deviceMemory = navigator.deviceMemory;
+    console.log(navigator)
+    const hardwareConcurrency = navigator.hardwareConcurrency;
+    const platform = os_version;
+    const plugins = getPlugins();
+    const canvasFingerprint = generateCanvasFingerprint();
+    const webglFingerprint = generateWebGLFingerprint();
+
+    // Hash the collected data using a hashing algorithm
+    const dataToHash = `${userAgent}${language}${colorDepth}${deviceMemory}${hardwareConcurrency}${platform}${plugins}${canvasFingerprint}${webglFingerprint}`;
+    console.log(dataToHash)
+    const hashedData = sha256(dataToHash);
+
+    return hashedData
+}
+
+// Get a list of installed plugins
+function getPlugins() {
+    const plugins = [];
+    for (let i = 0; i < navigator.plugins.length; i++) {
+        plugins.push(navigator.plugins[i].name);
+    }
+    return plugins.join(',');
+}
+
+// Generate a canvas fingerprint
+function generateCanvasFingerprint() {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) return '';
+    const extension = gl.getExtension('WEBGL_debug_renderer_info');
+    const fingerprint = `${gl.getParameter(gl.VENDOR)}~${gl.getParameter(gl.RENDERER)}~${extension ? gl.getParameter(extension.UNMASKED_RENDERER_WEBGL) : ''}`;
+    return fingerprint;
+}
+
+// Generate a WebGL fingerprint
+function generateWebGLFingerprint() {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) return '';
+    const fingerprint = gl.getExtension('WEBGL_debug_renderer_info') ? gl.getParameter(gl.getExtension('WEBGL_debug_renderer_info').UNMASKED_VENDOR_WEBGL) : '';
+    return fingerprint;
+}
+
+// SHA-256 hashing function
+function sha256(str) {
+    const buffer = new TextEncoder().encode(str);
+    return crypto.subtle.digest('SHA-256', buffer).then(hash => {
+        return hex(hash);
+    });
+}
+
+// Convert binary hash to hex string
+function hex(buffer) {
+    const hexCodes = [];
+    const view = new DataView(buffer);
+    for (let i = 0; i < view.byteLength; i += 4) {
+        const value = view.getUint32(i);
+        const stringValue = value.toString(16);
+        const padding = '00000000';
+        const paddedValue = (padding + stringValue).slice(-padding.length);
+        hexCodes.push(paddedValue);
+    }
+    return hexCodes.join('');
+}
