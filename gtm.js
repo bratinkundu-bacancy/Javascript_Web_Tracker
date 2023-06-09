@@ -1,9 +1,16 @@
-var apiUrl = 'https://dataspacedev.home.ubix.io/pub/signal'
+var apiUrl = 'https://ds-contentsquare.home.ubix.io/api/real-time-collect'
 
 var INITIAL_WAIT = 3000;
 var INTERVAL_WAIT = 10000;
 var ONE_SECOND = 1000;
-window.dataLayer = window.dataLayer || [];
+var config;
+
+for (var i = 0; i < dataLayer.length; i++) {
+    if (dataLayer[i].hasOwnProperty('userid')) {
+        config = dataLayer[i];
+        break;
+    }
+}
 
 var events = [
     "mouseup",
@@ -47,7 +54,12 @@ var os_version = window.navigator.platform
 var browser_full_version = parseFloat(window.navigator.appVersion)
 var browser_major_version = parseInt(navigator.appVersion)
 var screenOrientation = screen.orientation.type
-var deviceType = window.navigator.userAgentData.mobile ? "Mobile" : "Desktop";
+var userAgent = navigator.userAgent.toLowerCase();
+var mobileKeywords = ["mobile", "android", "iphone", "ipod", "ipad", "windows phone"];
+var isMobile = mobileKeywords.some(keyword => userAgent.includes(keyword));
+var deviceType = isMobile ? "Mobile" : "Desktop";
+var device_fingerprint = ''
+generateDeviceFingerprint().then(fg => { device_fingerprint = fg })
 
 function getBrowserName() {
     let userAgent = navigator.userAgent;
@@ -76,8 +88,7 @@ function sendSignalData(signal_event) {
             event: signal_event,
             url: pageUrl,
             timeZone: timezone,
-            sessionId: window['sessionId'],
-            timeStamp: new Date().getTime(),
+            userTimeStamp: new Date().getTime(),
             screenHeight: screenHeight,
             screenWidth: screenWidth,
             os_version: os_version,
@@ -85,7 +96,10 @@ function sendSignalData(signal_event) {
             browser_full_version: browser_full_version,
             browser_major_version: browser_major_version,
             screenOrientation: screenOrientation,
-            deviceType: deviceType
+            deviceType: deviceType,
+            userId: config.userid,
+            source: window.location.hostname,
+            referrer: document.referrer !== '' & window.location.href !== document.referrer ? document.referrer : ''
         }
         console.log("Sending signal...", signalData)
         // fetch(apiUrl, {
@@ -103,8 +117,6 @@ function sendSignalData(signal_event) {
         console.log(error)
     }
 }
-
-ubixConfig('3778925')
 
 events.forEach(function (e) {
     document.addEventListener(e, function () {
@@ -164,11 +176,77 @@ events.forEach(function (e) {
     })
 })
 
-function ubixConfig(id) {
-    window['sessionId'] = id
+function formatTime(ms) {
+    return Math.floor(ms / 1000);
 }
 
 
-function formatTime(ms) {
-    return Math.floor(ms / 1000);
+function generateDeviceFingerprint() {
+
+    var userAgent = navigator.userAgent;
+    var language = navigator.language;
+    var colorDepth = window.screen.colorDepth;
+    var deviceMemory = navigator.deviceMemory;
+    var hardwareConcurrency = navigator.hardwareConcurrency;
+    var platform = os_version;
+    var plugins = getPlugins();
+    var canvasFingerprint = generateCanvasFingerprint();
+    var webglFingerprint = generateWebGLFingerprint();
+
+    // Hash the collected data using a hashing algorithm
+    var dataToHash = `${userAgent}${language}${colorDepth}${deviceMemory}${hardwareConcurrency}${platform}${plugins}${canvasFingerprint}${webglFingerprint}`;
+
+    var hashedData = sha256(dataToHash);
+
+    return hashedData
+}
+
+// Get a list of installed plugins
+function getPlugins() {
+    var plugins = [];
+    for (let i = 0; i < navigator.plugins.length; i++) {
+        plugins.push(navigator.plugins[i].name);
+    }
+    return plugins.join(',');
+}
+
+// Generate a canvas fingerprint
+function generateCanvasFingerprint() {
+    var canvas = document.createElement('canvas');
+    var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) return '';
+    var extension = gl.getExtension('WEBGL_debug_renderer_info');
+    var fingerprint = `${gl.getParameter(gl.VENDOR)}~${gl.getParameter(gl.RENDERER)}~${extension ? gl.getParameter(extension.UNMASKED_RENDERER_WEBGL) : ''}`;
+    return fingerprint;
+}
+
+// Generate a WebGL fingerprint
+function generateWebGLFingerprint() {
+    var canvas = document.createElement('canvas');
+    var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) return '';
+    var fingerprint = gl.getExtension('WEBGL_debug_renderer_info') ? gl.getParameter(gl.getExtension('WEBGL_debug_renderer_info').UNMASKED_VENDOR_WEBGL) : '';
+    return fingerprint;
+}
+
+// SHA-256 hashing function
+function sha256(str) {
+    var buffer = new TextEncoder().encode(str);
+    return crypto.subtle.digest('SHA-256', buffer).then(hash => {
+        return hex(hash);
+    });
+}
+
+// Convert binary hash to hex string
+function hex(buffer) {
+    var hexCodes = [];
+    var view = new DataView(buffer);
+    for (let i = 0; i < view.byteLength; i += 4) {
+        var value = view.getUint32(i);
+        var stringValue = value.toString(16);
+        var padding = '00000000';
+        var paddedValue = (padding + stringValue).slice(-padding.length);
+        hexCodes.push(paddedValue);
+    }
+    return hexCodes.join('');
 }

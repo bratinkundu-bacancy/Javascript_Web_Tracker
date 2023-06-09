@@ -1,10 +1,16 @@
+var apiUrl = 'https://ds-contentsquare.home.ubix.io/api/real-time-collect'
 const ONE_SECOND = 1000; INITIAL_WAIT = 3000; INTERVAL_WAIT = 10000;
 
 const events = [
     "mouseup",
     "keydown",
     "scroll",
-    "mousemove"
+    "mousemove",
+    "mouseleave",
+    "error",
+    "click",
+    "paste",
+    "load"
 ];
 let startTime = Date.now();
 let endTime = startTime + INITIAL_WAIT;
@@ -17,11 +23,15 @@ let consecutive_click_count = 0;
 let excessive_click_count = 0;
 let bottom_page_visit_count = 0;
 
+/** New Adds */
+var total_paste = 0;
+var total_reloads = 0;
+
 /** Threshold frequency */
 const RAGE_CLICK_THRESHOLD = 750, CONSECUTIVE_THRESHOLD = 5000, EXCESSIVE_THRESHOLD = 10000
 
 /** Count limits for clicks */
-const RAGE_CLICK_LIMIT = 4, CONSECUTIVE_CLICK_LIMIT = 5, EXCESSIVE_CLICK_LIMIT = 10
+const RAGE_CLICK_LIMIT = 4, CONSECUTIVE_CLICK_LIMIT = 5, EXCESSIVE_CLICK_LIMIT = 10, PASTE_LIMIT = 2, RELOAD_LIMIT = 2
 
 let clickTimestamp = []
 let rage_counter = 0, consecutive_counter = 0, scroll_counter = 0
@@ -34,7 +44,6 @@ setInterval(function () {
     }
 }, ONE_SECOND);
 
-ubixConfig('3778925')
 
 var pageUrl = window.location.href;
 var timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -44,10 +53,16 @@ var os_version = window.navigator.platform
 var browser_full_version = parseFloat(window.navigator.appVersion)
 var browser_major_version = parseInt(navigator.appVersion)
 var screenOrientation = screen.orientation.type
-var deviceType = window.navigator.userAgentData.mobile ? "Mobile" : "Desktop";
+var mobileKeywords = ["mobile", "android", "iphone", "ipod", "ipad", "windows phone"];
+var isMobile = mobileKeywords.some(keyword => navigator.userAgent.toLowerCase().includes(keyword));
+var deviceType = isMobile ? "Mobile" : "Desktop";
 var device_fingerprint = ''
 generateDeviceFingerprint().then(fg => { device_fingerprint = fg })
 
+/** New Adds */
+var pageTitle = ''
+var pageLoadTime = 0
+var fist_contentful_paint = 0
 
 function getBrowserName() {
     let userAgent = navigator.userAgent;
@@ -76,8 +91,8 @@ function sendSignalData(signal_event) {
             event: signal_event,
             url: pageUrl,
             timeZone: timezone,
-            sessionId: window['sessionId'],
-            timeStamp: new Date().getTime(),
+            fingerprint: device_fingerprint,
+            userTimeStamp: new Date().getTime(),
             screenHeight: screenHeight,
             screenWidth: screenWidth,
             os_version: os_version,
@@ -85,10 +100,38 @@ function sendSignalData(signal_event) {
             browser_full_version: browser_full_version,
             browser_major_version: browser_major_version,
             screenOrientation: screenOrientation,
-            deviceType: deviceType
+            deviceType: deviceType,
+            source: window.location.hostname,
+            referrer: document.referrer !== '' & window.location.href !== document.referrer ? document.referrer : '',
+            /** New fields addition */
+            pageTitle: pageTitle,
+            pageLoadTime: signal_event === 'excessive_reloads' ? pageLoadTime : 0,
+            fisrtPaint: signal_event === 'excessive_reloads' ? fist_contentful_paint : 0
         }
 
-        console.log("Sending signal...", signalData)
+        var apiRequestBody = {
+            tableName: "LiveSignal",
+            data: [signalData],
+            clientInfo: {
+                appKey: "dataSpace",
+                accessToken: "c8358a11b164860333a64794b54eadca",
+                timeStamp: new Date().getTime()
+            }
+        }
+
+        console.log(`Sending signal... ${signal_event}`, apiRequestBody)
+
+        // fetch(apiUrl, {
+        //     method: 'POST',
+        //     headers: {
+        //         "Content-Type": "application/json",
+        //     },
+        //     body: JSON.stringify(apiRequestBody),
+        // }).then(function (response) {
+        //     console.log("Signal submitted!", response)
+        //     console.log(response.json());
+        // })
+        //     .catch(function (error) { console.log("Error", error) })
 
     } catch (error) {
         console.log(error)
@@ -108,11 +151,12 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("browser_full_version").innerHTML = browser_full_version;
     document.getElementById("browser_name").innerHTML = getBrowserName()
     document.getElementById("fingerprint").innerHTML = device_fingerprint;
+    pageTitle = document.title
 
     events.forEach(function (e) {
-        document.addEventListener(e, function () {
+        window.addEventListener(e, function () {
             endTime = Date.now() + INTERVAL_WAIT;
-            if (e === 'mouseup') {
+            if (e === 'click') {
                 total_click_count++; rage_counter++; consecutive_counter++;
 
                 const currentTimestamp = new Date().getTime()
@@ -124,7 +168,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     rage_click_count++;
                     rage_counter = 0;
                     document.getElementById('signal_rage_click').innerHTML = rage_click_count
-                    sendSignalData('rage_click_signal')
+                    sendSignalData('frustrated_click')
                 }
 
                 /** Condition for Consecutive Click */
@@ -133,7 +177,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     consecutive_click_count++;
                     consecutive_counter = 0;
                     document.getElementById('signal_consecutive_click').innerHTML = consecutive_click_count;
-                    sendSignalData('consecutive_click_signal')
+                    sendSignalData('consecutive_click')
                 }
 
                 /** Condition for Excessive Click */
@@ -142,7 +186,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     excessive_click_count++;
                     clickTimestamp = [];
                     document.getElementById('signal_excessive_click').innerHTML = excessive_click_count;
-                    sendSignalData('excessive_click_signal')
+                    sendSignalData('excessive_clicks')
                 }
 
                 /** Condtion to empty the timestamp array */
@@ -152,32 +196,53 @@ document.addEventListener("DOMContentLoaded", function () {
 
                 document.getElementById("click").innerHTML = total_click_count
             }
+            if (e === 'load') {
+                pageLoadTime = window.performance.timing.domContentLoadedEventEnd - window.performance.timing.navigationStart;
+                if (window.performance.getEntriesByName('first-contentful-paint').length > 0) {
+                    fist_contentful_paint = window.performance.getEntriesByName('first-contentful-paint')[0].startTime;
+                }
+                console.log(fist_contentful_paint, pageLoadTime)
+                if (window.performance.getEntriesByType("navigation")[0].type === 'reload') {
+                    sendSignalData('excessive_reloads')
+                }
+
+            }
             if (e === 'scroll') {
-                console.log(bottom_page_visit_count)
                 if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight) {
                     bottom_page_visit_count++;
                     if (bottom_page_visit_count > 2) {
                         bottom_page_visit_count = 0;
                         scroll_counter++;
                         document.getElementById('repeated_scroll').innerHTML = scroll_counter;
-                        sendSignalData('repeated_scroll')
+                        sendSignalData('repeated_scrolling')
                     }
                 }
+            }
+            /** New Adds */
+            if (e === 'error') {
+                sendSignalData('js_error')
+            }
+            if (e === 'paste') {
+                total_paste++;
+                if (total_paste > PASTE_LIMIT) {
+                    sendSignalData('excessive_pastes');
+                }
+            }
+            if (e === "mousemove") {
+                console.log("Mouse-move")
             }
         });
     });
 });
-
-function ubixConfig(id) {
-    window['sessionId'] = id
-}
-
 
 
 function formatTime(ms) {
     return Math.floor(ms / 1000);
 }
 
+function throwError() {
+    throw new Error("Emiting error signal..")
+}
 
 // Browser version, OS version, screen resolution, Major & minor version of browser, mobile version (portrait/landscape), deviceType (mobile)
 
