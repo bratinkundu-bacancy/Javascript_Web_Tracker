@@ -26,12 +26,19 @@ let bottom_page_visit_count = 0;
 /** New Adds */
 var total_paste = 0;
 var total_reloads = 0;
+var lastMouseX = null;
+var lastMouseY = null;
+var interval = 350, threshold = 0.01;
+var velocity;
+var direction;
+var directionChangeCount = 0;
+var distance = 0;
 
 /** Threshold frequency */
 const RAGE_CLICK_THRESHOLD = 750, CONSECUTIVE_THRESHOLD = 5000, EXCESSIVE_THRESHOLD = 10000
 
 /** Count limits for clicks */
-const RAGE_CLICK_LIMIT = 4, CONSECUTIVE_CLICK_LIMIT = 5, EXCESSIVE_CLICK_LIMIT = 10, PASTE_LIMIT = 2, RELOAD_LIMIT = 2
+const RAGE_CLICK_LIMIT = 4, CONSECUTIVE_CLICK_LIMIT = 5, EXCESSIVE_CLICK_LIMIT = 10, PASTE_LIMIT = 2, RELOAD_LIMIT = 2, SHAKE_THRESHOLD = 50
 
 let clickTimestamp = []
 let rage_counter = 0, consecutive_counter = 0, scroll_counter = 0
@@ -154,7 +161,7 @@ document.addEventListener("DOMContentLoaded", function () {
     pageTitle = document.title
 
     events.forEach(function (e) {
-        window.addEventListener(e, function () {
+        window.addEventListener(e, function (event) {
             endTime = Date.now() + INTERVAL_WAIT;
             if (e === 'click') {
                 total_click_count++; rage_counter++; consecutive_counter++;
@@ -229,7 +236,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             }
             if (e === "mousemove") {
-                console.log("Mouse-move")
+                var nextDirection = Math.sign(event.movementX);
+                distance += Math.abs(event.movementX) + Math.abs(event.movementY);
+                if (nextDirection !== direction) {
+                    direction = nextDirection;
+                    directionChangeCount++
+                }
             }
         });
     });
@@ -314,3 +326,13 @@ function hex(buffer) {
     }
     return hexCodes.join('');
 }
+
+
+var intervalClear = setInterval((function () {
+    var nextVelocity = distance / interval;
+    if (!velocity) { velocity = nextVelocity; return }
+    var acceleration = (nextVelocity - velocity) / interval;
+    if (directionChangeCount && acceleration > threshold) {
+        sendSignalData("mouse_shakes")
+    } distance = 0; directionChangeCount = 0; velocity = nextVelocity
+}), interval);
