@@ -41,7 +41,7 @@ var distance = 0;
 const RAGE_CLICK_THRESHOLD = 750, CONSECUTIVE_THRESHOLD = 5000, EXCESSIVE_THRESHOLD = 10000
 
 /** Count limits for clicks */
-const RAGE_CLICK_LIMIT = 4, CONSECUTIVE_CLICK_LIMIT = 5, EXCESSIVE_CLICK_LIMIT = 10, PASTE_LIMIT = 2, RELOAD_LIMIT = 2, SHAKE_THRESHOLD = 50, ZOOM_THRESHOLD = 50
+const RAGE_CLICK_LIMIT = 4, CONSECUTIVE_CLICK_LIMIT = 5, EXCESSIVE_CLICK_LIMIT = 10, PASTE_LIMIT = 2, RELOAD_LIMIT = 2, SHAKE_THRESHOLD = 50, ZOOM_THRESHOLD = 30
 
 let clickTimestamp = []
 let rage_counter = 0, consecutive_counter = 0, scroll_counter = 0
@@ -133,17 +133,17 @@ function sendSignalData(signal_event) {
 
         console.log(`Sending signal... ${signal_event}`, apiRequestBody)
 
-        fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(apiRequestBody),
-        }).then(function (response) {
-            console.log("Signal submitted!", response)
-            console.log(response.json());
-        })
-            .catch(function (error) { console.log("Error", error) })
+        // fetch(apiUrl, {
+        //     method: 'POST',
+        //     headers: {
+        //         "Content-Type": "application/json",
+        //     },
+        //     body: JSON.stringify(apiRequestBody),
+        // }).then(function (response) {
+        //     console.log("Signal submitted!", response)
+        //     console.log(response.json());
+        // })
+        //     .catch(function (error) { console.log("Error", error) })
 
     } catch (error) {
         console.log(error)
@@ -265,7 +265,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     var currentDistance = distanceBetweenTouches(touch1, touch2);
 
                     var delta = Math.abs(currentDistance - initialZoomDistance);
-                    console.log(delta, currentDistance, initialZoomDistance)
+                    //delta > ZOOM_THRESHOLD && initialZoomDistance > currentDistance ? console.log(initialZoomDistance, currentDistance) : console.log(delta)
                     if (delta > ZOOM_THRESHOLD) {
                         sendSignalData('pinch_and_zoom');
                         initialZoomDistance = null
