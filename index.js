@@ -10,7 +10,10 @@ const events = [
     "error",
     "click",
     "paste",
-    "load"
+    "load",
+    "touchstart",
+    "touchend",
+    "touchmove"
 ];
 let startTime = Date.now();
 let endTime = startTime + INITIAL_WAIT;
@@ -38,7 +41,7 @@ var distance = 0;
 const RAGE_CLICK_THRESHOLD = 750, CONSECUTIVE_THRESHOLD = 5000, EXCESSIVE_THRESHOLD = 10000
 
 /** Count limits for clicks */
-const RAGE_CLICK_LIMIT = 4, CONSECUTIVE_CLICK_LIMIT = 5, EXCESSIVE_CLICK_LIMIT = 10, PASTE_LIMIT = 2, RELOAD_LIMIT = 2, SHAKE_THRESHOLD = 50
+const RAGE_CLICK_LIMIT = 4, CONSECUTIVE_CLICK_LIMIT = 5, EXCESSIVE_CLICK_LIMIT = 10, PASTE_LIMIT = 2, RELOAD_LIMIT = 2, SHAKE_THRESHOLD = 50, ZOOM_THRESHOLD = 50
 
 let clickTimestamp = []
 let rage_counter = 0, consecutive_counter = 0, scroll_counter = 0
@@ -66,10 +69,12 @@ var deviceType = isMobile ? "Mobile" : "Desktop";
 var device_fingerprint = ''
 generateDeviceFingerprint().then(fg => { device_fingerprint = fg })
 
-/** New Adds */
 var pageTitle = ''
 var pageLoadTime = 0
 var fist_contentful_paint = 0
+/** New Adds */
+var initialZoomDistance = null
+
 
 function getBrowserName() {
     let userAgent = navigator.userAgent;
@@ -117,28 +122,28 @@ function sendSignalData(signal_event) {
         }
 
         var apiRequestBody = {
-            tableName: "LiveSignal",
+            tableName: "MarketingTag",
             data: [signalData],
             clientInfo: {
                 appKey: "dataSpace",
-                accessToken: "c8358a11b164860333a64794b54eadca",
+                accessToken: "dataSpace@ubix.com",
                 timeStamp: new Date().getTime()
             }
         }
 
         console.log(`Sending signal... ${signal_event}`, apiRequestBody)
 
-        // fetch(apiUrl, {
-        //     method: 'POST',
-        //     headers: {
-        //         "Content-Type": "application/json",
-        //     },
-        //     body: JSON.stringify(apiRequestBody),
-        // }).then(function (response) {
-        //     console.log("Signal submitted!", response)
-        //     console.log(response.json());
-        // })
-        //     .catch(function (error) { console.log("Error", error) })
+        fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(apiRequestBody),
+        }).then(function (response) {
+            console.log("Signal submitted!", response)
+            console.log(response.json());
+        })
+            .catch(function (error) { console.log("Error", error) })
 
     } catch (error) {
         console.log(error)
@@ -225,7 +230,6 @@ document.addEventListener("DOMContentLoaded", function () {
                     }
                 }
             }
-            /** New Adds */
             if (e === 'error') {
                 sendSignalData('js_error')
             }
@@ -241,6 +245,32 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (nextDirection !== direction) {
                     direction = nextDirection;
                     directionChangeCount++
+                }
+            }
+            /** New Adds */
+            if (e === 'touchstart') {
+                if (event.touches.length === 2) {
+                    var touch1 = event.touches[0];
+                    var touch2 = event.touches[1];
+                    initialZoomDistance = distanceBetweenTouches(touch1, touch2);
+                }
+            }
+            if (e === 'touchend') {
+                initialZoomDistance = null
+            }
+            if (e === 'touchmove') {
+                if (event.touches.length === 2 && initialZoomDistance !== null) {
+                    var touch1 = event.touches[0];
+                    var touch2 = event.touches[1];
+                    var currentDistance = distanceBetweenTouches(touch1, touch2);
+
+                    var delta = Math.abs(currentDistance - initialZoomDistance);
+                    console.log(delta, currentDistance, initialZoomDistance)
+                    if (delta > ZOOM_THRESHOLD) {
+                        sendSignalData('pinch_and_zoom');
+                        initialZoomDistance = null
+
+                    }
                 }
             }
         });
@@ -325,6 +355,12 @@ function hex(buffer) {
         hexCodes.push(paddedValue);
     }
     return hexCodes.join('');
+}
+
+function distanceBetweenTouches(t1, t2) {
+    var dx = t2.clientX - t1.clientX;
+    var dy = t2.clientY - t1.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
 }
 
 

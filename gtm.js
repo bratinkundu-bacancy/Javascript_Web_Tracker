@@ -3,45 +3,63 @@ var apiUrl = 'https://ds-contentsquare.home.ubix.io/api/real-time-collect'
 var INITIAL_WAIT = 3000;
 var INTERVAL_WAIT = 10000;
 var ONE_SECOND = 1000;
-var config;
 
-for (var i = 0; i < dataLayer.length; i++) {
-    if (dataLayer[i].hasOwnProperty('userid')) {
-        config = dataLayer[i];
+console.log(window.dataLayer)
+
+var tableName;
+var config
+for (var i = 0; i < window.dataLayer.length; i++) {
+    if (window.dataLayer[i].hasOwnProperty('tableName')) {
+        tableName = window.dataLayer[i].tableName;
         break;
     }
 }
 
-var events = [
+const events = [
     "mouseup",
     "keydown",
     "scroll",
-    "mousemove"
+    "mousemove",
+    "mouseleave",
+    "error",
+    "click",
+    "paste",
+    "load",
+    "touchstart",
+    "touchend",
+    "touchmove"
 ];
 var startTime = Date.now();
 var endTime = startTime + INITIAL_WAIT;
 var totalTime = 0;
-var buttonClicks = {
-    total: 0,
-};
-var buttonClickCount = 0;
-var keypressCount = 0;
-var scrollCount = 0;
-var mouseMovementCount = 0;
-var linkClickCount = 0;
+
 
 /** Variables for click counts */
-var total_click_count = 0;
-var rage_click_count = 0;
-var consecutive_click_count = 0;
-var excessive_click_count = 0;
-var bottom_page_visit_count = 0;
+let total_click_count = 0;
+let rage_click_count = 0;
+let consecutive_click_count = 0;
+let excessive_click_count = 0;
+let bottom_page_visit_count = 0;
+var total_paste = 0;
+var total_reloads = 0;
+var lastMouseX = null;
+var lastMouseY = null;
+var interval = 350, threshold = 0.01;
+var velocity;
+var direction;
+var directionChangeCount = 0;
+var distance = 0;
+var pageTitle = ''
+var pageLoadTime = 0
+var fist_contentful_paint = 0
+var initialZoomDistance = null
+
 
 /** Threshold frequency */
-var RAGE_CLICK_THRESHOLD = 750, CONSECUTIVE_THRESHOLD = 5000, EXCESSIVE_THRESHOLD = 10000
+const RAGE_CLICK_THRESHOLD = 750, CONSECUTIVE_THRESHOLD = 5000, EXCESSIVE_THRESHOLD = 10000
 
 /** Count limits for clicks */
-var RAGE_CLICK_LIMIT = 4, CONSECUTIVE_CLICK_LIMIT = 5, EXCESSIVE_CLICK_LIMIT = 10
+const RAGE_CLICK_LIMIT = 4, CONSECUTIVE_CLICK_LIMIT = 5, EXCESSIVE_CLICK_LIMIT = 10, PASTE_LIMIT = 2, RELOAD_LIMIT = 2, SHAKE_THRESHOLD = 50, ZOOM_THRESHOLD = 50
 
 var clickTimestamp = []
 var rage_counter = 0, consecutive_counter = 0, scroll_counter = 0;
@@ -54,16 +72,17 @@ var os_version = window.navigator.platform
 var browser_full_version = parseFloat(window.navigator.appVersion)
 var browser_major_version = parseInt(navigator.appVersion)
 var screenOrientation = screen.orientation.type
-var userAgent = navigator.userAgent.toLowerCase();
 var mobileKeywords = ["mobile", "android", "iphone", "ipod", "ipad", "windows phone"];
-var isMobile = mobileKeywords.some(keyword => userAgent.includes(keyword));
+var userAgent = navigator.userAgent.toLowerCase();
+var isMobile = mobileKeywords.some(function (keyword) { userAgent.includes(keyword) });
 var deviceType = isMobile ? "Mobile" : "Desktop";
 var device_fingerprint = ''
-generateDeviceFingerprint().then(fg => { device_fingerprint = fg })
+generateDeviceFingerprint().then(function (fg) { device_fingerprint = fg })
+
 
 function getBrowserName() {
-    let userAgent = navigator.userAgent;
-    let browserName;
+    var userAgent = navigator.userAgent;
+    var browserName;
 
     if (userAgent.match(/chrome|chromium|crios/i)) {
         browserName = "chrome";
@@ -88,6 +107,7 @@ function sendSignalData(signal_event) {
             event: signal_event,
             url: pageUrl,
             timeZone: timezone,
+            fingerprint: device_fingerprint,
             userTimeStamp: new Date().getTime(),
             screenHeight: screenHeight,
             screenWidth: screenWidth,
@@ -97,21 +117,37 @@ function sendSignalData(signal_event) {
             browser_major_version: browser_major_version,
             screenOrientation: screenOrientation,
             deviceType: deviceType,
-            userId: config.userid,
             source: window.location.hostname,
-            referrer: document.referrer !== '' & window.location.href !== document.referrer ? document.referrer : ''
+            referrer: document.referrer !== '' & window.location.href !== document.referrer ? document.referrer : '',
+            /** New fields addition */
+            pageTitle: pageTitle,
+            pageLoadTime: signal_event === 'excessive_reloads' ? pageLoadTime : 0,
+            fisrtPaint: signal_event === 'excessive_reloads' ? fist_contentful_paint : 0
         }
-        console.log("Sending signal...", signalData)
+
+        var apiRequestBody = {
+            tableName: tableName,
+            data: [signalData],
+            clientInfo: {
+                appKey: "dataSpace",
+                accessToken: "dataSpace@ubix.com",
+                timeStamp: new Date().getTime()
+            }
+        }
+
+        console.log('Sending signal...', signal_event, apiRequestBody)
+
         // fetch(apiUrl, {
         //     method: 'POST',
         //     headers: {
         //         "Content-Type": "application/json",
         //     },
-        //     body: JSON.stringify(signalData),
+        //     body: JSON.stringify(apiRequestBody),
         // }).then(function (response) {
-        //     console.log("Signal submitted!")
-        //     response.text();
-        // }).catch(function (error) { console.log("Error", error) })
+        //     console.log("Signal submitted!", response)
+        //     console.log(response.json());
+        // })
+        //     .catch(function (error) { console.log("Error", error) })
 
     } catch (error) {
         console.log(error)
@@ -120,7 +156,7 @@ function sendSignalData(signal_event) {
 
 events.forEach(function (e) {
     document.addEventListener(e, function () {
-        if (e == "mouseup") {
+        if (e == 'click') {
             total_click_count++; rage_counter++; consecutive_counter++;
 
             var currentTimestamp = new Date().getTime()
@@ -162,14 +198,67 @@ events.forEach(function (e) {
                 clickTimestamp = [];
             }
         }
+        if (e === 'load') {
+            pageLoadTime = window.performance.timing.domContentLoadedEventEnd - window.performance.timing.navigationStart;
+            if (window.performance.getEntriesByName('first-contentful-paint').length > 0) {
+                fist_contentful_paint = window.performance.getEntriesByName('first-contentful-paint')[0].startTime;
+            }
+            console.log(fist_contentful_paint, pageLoadTime)
+            if (window.performance.getEntriesByType("navigation")[0].type === 'reload') {
+                sendSignalData('excessive_reloads')
+            }
+
+        }
         if (e === 'scroll') {
             if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight) {
                 bottom_page_visit_count++;
                 if (bottom_page_visit_count > 2) {
                     bottom_page_visit_count = 0;
                     scroll_counter++;
-                    document.getElementById('repeated_scroll').innerHTML = scroll_counter;
+                    //document.getElementById('repeated_scroll').innerHTML = scroll_counter;
                     sendSignalData('repeated_scroll')
+                }
+            }
+        }
+        if (e === 'error') {
+            sendSignalData('js_error')
+        }
+        if (e === 'paste') {
+            total_paste++;
+            if (total_paste > PASTE_LIMIT) {
+                sendSignalData('excessive_pastes');
+            }
+        }
+        if (e === "mousemove") {
+            var nextDirection = Math.sign(event.movementX);
+            distance += Math.abs(event.movementX) + Math.abs(event.movementY);
+            if (nextDirection !== direction) {
+                direction = nextDirection;
+                directionChangeCount++
+            }
+        }
+        if (e === 'touchstart') {
+            if (event.touches.length === 2) {
+                var touch1 = event.touches[0];
+                var touch2 = event.touches[1];
+                initialZoomDistance = distanceBetweenTouches(touch1, touch2);
+            }
+        }
+        if (e === 'touchend') {
+            initialZoomDistance = null
+        }
+        if (e === 'touchmove') {
+            if (event.touches.length === 2 && initialZoomDistance !== null) {
+                var touch1 = event.touches[0];
+                var touch2 = event.touches[1];
+                var currentDistance = distanceBetweenTouches(touch1, touch2);
+
+                var delta = Math.abs(currentDistance - initialZoomDistance);
+                console.log(delta, currentDistance, initialZoomDistance)
+                if (delta > ZOOM_THRESHOLD) {
+                    sendSignalData('pinch_and_zoom');
+                    initialZoomDistance = null
+
                 }
             }
         }
@@ -194,8 +283,7 @@ function generateDeviceFingerprint() {
     var webglFingerprint = generateWebGLFingerprint();
 
     // Hash the collected data using a hashing algorithm
-    var dataToHash = `${userAgent}${language}${colorDepth}${deviceMemory}${hardwareConcurrency}${platform}${plugins}${canvasFingerprint}${webglFingerprint}`;
-
+    var dataToHash = userAgent + language + colorDepth + deviceMemory + hardwareConcurrency + platform + plugins + canvasFingerprint + webglFingerprint;
     var hashedData = sha256(dataToHash);
 
     return hashedData
@@ -204,7 +292,7 @@ function generateDeviceFingerprint() {
 // Get a list of installed plugins
 function getPlugins() {
     var plugins = [];
-    for (let i = 0; i < navigator.plugins.length; i++) {
+    for (var i = 0; i < navigator.plugins.length; i++) {
         plugins.push(navigator.plugins[i].name);
     }
     return plugins.join(',');
@@ -216,7 +304,8 @@ function generateCanvasFingerprint() {
     var gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
     if (!gl) return '';
     var extension = gl.getExtension('WEBGL_debug_renderer_info');
-    var fingerprint = `${gl.getParameter(gl.VENDOR)}~${gl.getParameter(gl.RENDERER)}~${extension ? gl.getParameter(extension.UNMASKED_RENDERER_WEBGL) : ''}`;
+    var ext = extension ? gl.getParameter(extension.UNMASKED_RENDERER_WEBGL) : ''
+    var fingerprint = gl.getParameter(gl.VENDOR) + '~' + gl.getParameter(gl.RENDERER) + '~' + ext;
     return fingerprint;
 }
 
@@ -232,7 +321,7 @@ function generateWebGLFingerprint() {
 // SHA-256 hashing function
 function sha256(str) {
     var buffer = new TextEncoder().encode(str);
-    return crypto.subtle.digest('SHA-256', buffer).then(hash => {
+    return crypto.subtle.digest('SHA-256', buffer).then(function (hash) {
         return hex(hash);
     });
 }
@@ -241,7 +330,7 @@ function sha256(str) {
 function hex(buffer) {
     var hexCodes = [];
     var view = new DataView(buffer);
-    for (let i = 0; i < view.byteLength; i += 4) {
+    for (var i = 0; i < view.byteLength; i += 4) {
         var value = view.getUint32(i);
         var stringValue = value.toString(16);
         var padding = '00000000';
@@ -250,3 +339,19 @@ function hex(buffer) {
     }
     return hexCodes.join('');
 }
+
+function distanceBetweenTouches(t1, t2) {
+    var dx = t2.clientX - t1.clientX;
+    var dy = t2.clientY - t1.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+
+var intervalClear = setInterval((function () {
+    var nextVelocity = distance / interval;
+    if (!velocity) { velocity = nextVelocity; return }
+    var acceleration = (nextVelocity - velocity) / interval;
+    if (directionChangeCount && acceleration > threshold) {
+        sendSignalData("mouse_shakes")
+    } distance = 0; directionChangeCount = 0; velocity = nextVelocity
+}), interval);
