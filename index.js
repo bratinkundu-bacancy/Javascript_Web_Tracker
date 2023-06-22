@@ -13,7 +13,8 @@ const events = [
     "load",
     "touchstart",
     "touchend",
-    "touchmove"
+    "touchmove",
+    "mouseover"
 ];
 let startTime = Date.now();
 let endTime = startTime + INITIAL_WAIT;
@@ -74,6 +75,12 @@ var pageLoadTime = 0
 var fist_contentful_paint = 0
 /** New Adds */
 var initialZoomDistance = null
+var xpath = ''
+
+var hoverCounts = {
+    buttons: 0,
+    links: 0,
+}
 
 
 function getBrowserName() {
@@ -118,7 +125,8 @@ function sendSignalData(signal_event) {
             /** New fields addition */
             pageTitle: pageTitle,
             pageLoadTime: signal_event === 'excessive_reloads' ? pageLoadTime : 0,
-            fisrtPaint: signal_event === 'excessive_reloads' ? fist_contentful_paint : 0
+            fisrtPaint: signal_event === 'excessive_reloads' ? fist_contentful_paint : 0,
+            xpath: signal_event.includes('click') ? xpath : ''
         }
 
         var apiRequestBody = {
@@ -133,17 +141,17 @@ function sendSignalData(signal_event) {
 
         console.log(`Sending signal... ${signal_event}`, apiRequestBody)
 
-        fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(apiRequestBody),
-        }).then(function (response) {
-            console.log("Signal submitted!", response)
-            console.log(response.json());
-        })
-            .catch(function (error) { console.log("Error", error) })
+        // fetch(apiUrl, {
+        //     method: 'POST',
+        //     headers: {
+        //         "Content-Type": "application/json",
+        //     },
+        //     body: JSON.stringify(apiRequestBody),
+        // }).then(function (response) {
+        //     console.log("Signal submitted!", response)
+        //     console.log(response.json());
+        // })
+        //     .catch(function (error) { console.log("Error", error) })
 
     } catch (error) {
         console.log(error)
@@ -180,6 +188,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     rage_click_count++;
                     rage_counter = 0;
                     document.getElementById('signal_rage_click').innerHTML = rage_click_count
+                    xpath = getXPath(event.target)
+                    console.log(xpath)
                     sendSignalData('frustrated_click')
                 }
 
@@ -189,6 +199,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     consecutive_click_count++;
                     consecutive_counter = 0;
                     document.getElementById('signal_consecutive_click').innerHTML = consecutive_click_count;
+                    xpath = getXPath(event.target)
+                    console.log(xpath)
                     sendSignalData('consecutive_click')
                 }
 
@@ -198,6 +210,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     excessive_click_count++;
                     clickTimestamp = [];
                     document.getElementById('signal_excessive_click').innerHTML = excessive_click_count;
+                    xpath = getXPath(event.target)
+                    console.log(xpath)
                     sendSignalData('excessive_clicks')
                 }
 
@@ -272,6 +286,20 @@ document.addEventListener("DOMContentLoaded", function () {
 
                     }
                 }
+            }
+            if (e === 'mouseover') {
+                var htmlTag = event.target.tagName.toLowerCase()
+
+                if (htmlTag == 'button') {
+                    hoverCounts.buttons++
+                    if (hoverCounts.buttons > 2) {
+                        xpath = getXPath()
+                    }
+                }
+                if (htmlTag === 'a') {
+
+                }
+                //console.log(htmlTag)
             }
         });
     });
@@ -357,12 +385,40 @@ function hex(buffer) {
     return hexCodes.join('');
 }
 
+// Calculate distance between two touches
 function distanceBetweenTouches(t1, t2) {
     var dx = t2.clientX - t1.clientX;
     var dy = t2.clientY - t1.clientY;
     return Math.sqrt(dx * dx + dy * dy);
 }
 
+
+// Calculate XPath of the element
+function getXPath(element) {
+    if (element && element.parentNode) {
+        var xpath = getXPath(element.parentNode) + '/' + element.tagName.toLowerCase();
+        var index = getChildIndex(element);
+        if (index > 1) {
+            xpath += '[' + index + ']';
+        }
+        return xpath;
+    } else {
+        return '';
+    }
+}
+
+
+function getChildIndex(element) {
+    var index = 1;
+    var sibling = element.previousElementSibling;
+    while (sibling) {
+        if (sibling.tagName === element.tagName) {
+            index++;
+        }
+        sibling = sibling.previousElementSibling;
+    }
+    return index;
+}
 
 var intervalClear = setInterval((function () {
     var nextVelocity = distance / interval;
