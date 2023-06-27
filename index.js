@@ -80,6 +80,7 @@ var xpath = ''
 var hoverCounts = {
     buttons: 0,
     links: 0,
+    input: 0,
 }
 
 
@@ -126,7 +127,7 @@ function sendSignalData(signal_event) {
             pageTitle: pageTitle,
             pageLoadTime: signal_event === 'excessive_reloads' ? pageLoadTime : 0,
             fisrtPaint: signal_event === 'excessive_reloads' ? fist_contentful_paint : 0,
-            xpath: signal_event.includes('click') ? xpath : ''
+            xpath: signal_event.includes('click') || signal_event.includes('hover') ? xpath : ''
         }
 
         var apiRequestBody = {
@@ -223,12 +224,11 @@ document.addEventListener("DOMContentLoaded", function () {
                 document.getElementById("click").innerHTML = total_click_count
             }
             if (e === 'load') {
-                pageLoadTime = window.performance.timing.domContentLoadedEventEnd - window.performance.timing.navigationStart;
                 if (window.performance.getEntriesByName('first-contentful-paint').length > 0) {
                     fist_contentful_paint = window.performance.getEntriesByName('first-contentful-paint')[0].startTime;
                 }
-                console.log(fist_contentful_paint, pageLoadTime)
                 if (window.performance.getEntriesByType("navigation")[0].type === 'reload') {
+                    pageLoadTime = window.performance.timing.domComplete - window.performance.timing.navigationStart
                     sendSignalData('excessive_reloads')
                 }
 
@@ -293,11 +293,26 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (htmlTag == 'button') {
                     hoverCounts.buttons++
                     if (hoverCounts.buttons > 2) {
-                        xpath = getXPath()
+                        xpath = getXPath(event.target)
+                        hoverCounts.buttons = 0
+                        sendSignalData('repetitive_hovering')
                     }
                 }
                 if (htmlTag === 'a') {
-
+                    hoverCounts.links++
+                    if (hoverCounts.links > 2) {
+                        xpath = getXPath(event.target)
+                        hoverCounts.links = 0
+                        sendSignalData('repetitive_hovering')
+                    }
+                }
+                if (htmlTag === 'input') {
+                    hoverCounts.input++
+                    if (hoverCounts.input > 2) {
+                        xpath = getXPath(event.target)
+                        hoverCounts.input = 0
+                        sendSignalData('repetitive_hovering')
+                    }
                 }
                 //console.log(htmlTag)
             }
