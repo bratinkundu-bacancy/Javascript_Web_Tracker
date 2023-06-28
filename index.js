@@ -142,17 +142,17 @@ function sendSignalData(signal_event) {
 
         console.log(`Sending signal... ${signal_event}`, apiRequestBody)
 
-        // fetch(apiUrl, {
-        //     method: 'POST',
-        //     headers: {
-        //         "Content-Type": "application/json",
-        //     },
-        //     body: JSON.stringify(apiRequestBody),
-        // }).then(function (response) {
-        //     console.log("Signal submitted!", response)
-        //     console.log(response.json());
-        // })
-        //     .catch(function (error) { console.log("Error", error) })
+        fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(apiRequestBody),
+        }).then(function (response) {
+            console.log("Signal submitted!", response)
+            console.log(response.json());
+        })
+            .catch(function (error) { console.log("Error", error) })
 
     } catch (error) {
         console.log(error)
