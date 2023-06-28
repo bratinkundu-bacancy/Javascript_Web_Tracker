@@ -15,7 +15,7 @@ for (var i = 0; i < window.dataLayer.length; i++) {
     }
 }
 
-const events = [
+var events = [
     "mouseup",
     "keydown",
     "scroll",
@@ -35,11 +35,11 @@ var totalTime = 0;
 
 
 /** Variables for click counts */
-let total_click_count = 0;
-let rage_click_count = 0;
-let consecutive_click_count = 0;
-let excessive_click_count = 0;
-let bottom_page_visit_count = 0;
+var total_click_count = 0;
+var rage_click_count = 0;
+var consecutive_click_count = 0;
+var excessive_click_count = 0;
+var bottom_page_visit_count = 0;
 var total_paste = 0;
 var total_reloads = 0;
 var lastMouseX = null;
@@ -53,13 +53,20 @@ var pageTitle = ''
 var pageLoadTime = 0
 var fist_contentful_paint = 0
 var initialZoomDistance = null
+var xpath = ''
+
+var hoverCounts = {
+    buttons: 0,
+    links: 0,
+    input: 0,
+}
 
 
 /** Threshold frequency */
-const RAGE_CLICK_THRESHOLD = 750, CONSECUTIVE_THRESHOLD = 5000, EXCESSIVE_THRESHOLD = 10000
+var RAGE_CLICK_THRESHOLD = 750, CONSECUTIVE_THRESHOLD = 5000, EXCESSIVE_THRESHOLD = 10000
 
 /** Count limits for clicks */
-const RAGE_CLICK_LIMIT = 4, CONSECUTIVE_CLICK_LIMIT = 5, EXCESSIVE_CLICK_LIMIT = 10, PASTE_LIMIT = 2, RELOAD_LIMIT = 2, SHAKE_THRESHOLD = 50, ZOOM_THRESHOLD = 50
+var RAGE_CLICK_LIMIT = 4, CONSECUTIVE_CLICK_LIMIT = 5, EXCESSIVE_CLICK_LIMIT = 10, PASTE_LIMIT = 2, RELOAD_LIMIT = 2, SHAKE_THRESHOLD = 50, ZOOM_THRESHOLD = 50
 
 var clickTimestamp = []
 var rage_counter = 0, consecutive_counter = 0, scroll_counter = 0;
@@ -122,7 +129,8 @@ function sendSignalData(signal_event) {
             /** New fields addition */
             pageTitle: pageTitle,
             pageLoadTime: signal_event === 'excessive_reloads' ? pageLoadTime : 0,
-            fisrtPaint: signal_event === 'excessive_reloads' ? fist_contentful_paint : 0
+            fisrtPaint: signal_event === 'excessive_reloads' ? fist_contentful_paint : 0,
+            xpath: signal_event.includes('click') || signal_event.includes('hover') ? xpath : ''
         }
 
         var apiRequestBody = {
@@ -137,17 +145,17 @@ function sendSignalData(signal_event) {
 
         console.log('Sending signal...', signal_event, apiRequestBody)
 
-        // fetch(apiUrl, {
-        //     method: 'POST',
-        //     headers: {
-        //         "Content-Type": "application/json",
-        //     },
-        //     body: JSON.stringify(apiRequestBody),
-        // }).then(function (response) {
-        //     console.log("Signal submitted!", response)
-        //     console.log(response.json());
-        // })
-        //     .catch(function (error) { console.log("Error", error) })
+        fetch(apiUrl, {
+            method: 'POST',
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify(apiRequestBody),
+        }).then(function (response) {
+            console.log("Signal submitted!", response)
+            console.log(response.json());
+        })
+            .catch(function (error) { console.log("Error", error) })
 
     } catch (error) {
         console.log(error)
@@ -155,7 +163,7 @@ function sendSignalData(signal_event) {
 }
 
 events.forEach(function (e) {
-    document.addEventListener(e, function () {
+    document.addEventListener(e, function (event) {
         if (e == 'click') {
             total_click_count++; rage_counter++; consecutive_counter++;
 
@@ -169,7 +177,7 @@ events.forEach(function (e) {
                 rage_click_count++;
                 rage_counter = 0;
                 //document.getElementById('signal_rage_click').innerHTML = rage_click_count
-
+                xpath = getXPath(event.target)
                 sendSignalData('rage_click_signal')
             }
 
@@ -179,7 +187,7 @@ events.forEach(function (e) {
                 consecutive_click_count++;
                 consecutive_counter = 0;
                 // document.getElementById('signal_consecutive_click').innerHTML = consecutive_click_count;
-
+                xpath = getXPath(event.target)
                 sendSignalData('consecutive_click_signal')
             }
 
@@ -189,7 +197,7 @@ events.forEach(function (e) {
                 excessive_click_count++;
                 clickTimestamp = [];
                 //document.getElementById('signal_excessive_click').innerHTML = excessive_click_count;
-
+                xpath = getXPath(event.target)
                 sendSignalData('excessive_click_signal')
             }
 
@@ -199,15 +207,13 @@ events.forEach(function (e) {
             }
         }
         if (e === 'load') {
-            pageLoadTime = window.performance.timing.domContentLoadedEventEnd - window.performance.timing.navigationStart;
             if (window.performance.getEntriesByName('first-contentful-paint').length > 0) {
                 fist_contentful_paint = window.performance.getEntriesByName('first-contentful-paint')[0].startTime;
             }
-            console.log(fist_contentful_paint, pageLoadTime)
             if (window.performance.getEntriesByType("navigation")[0].type === 'reload') {
+                pageLoadTime = window.performance.timing.domComplete - window.performance.timing.navigationStart
                 sendSignalData('excessive_reloads')
             }
-
         }
         if (e === 'scroll') {
             if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight) {
@@ -254,13 +260,42 @@ events.forEach(function (e) {
                 var currentDistance = distanceBetweenTouches(touch1, touch2);
 
                 var delta = Math.abs(currentDistance - initialZoomDistance);
-                console.log(delta, currentDistance, initialZoomDistance)
+                //delta > ZOOM_THRESHOLD && initialZoomDistance > currentDistance ? console.log(initialZoomDistance, currentDistance) : console.log(delta)
                 if (delta > ZOOM_THRESHOLD) {
                     sendSignalData('pinch_and_zoom');
                     initialZoomDistance = null
 
                 }
             }
+        }
+        if (e === 'mouseover') {
+            var htmlTag = event.target.tagName.toLowerCase()
+
+            if (htmlTag == 'button') {
+                hoverCounts.buttons++
+                if (hoverCounts.buttons > 2) {
+                    xpath = getXPath(event.target)
+                    hoverCounts.buttons = 0
+                    sendSignalData('repetitive_hovering')
+                }
+            }
+            if (htmlTag === 'a') {
+                hoverCounts.links++
+                if (hoverCounts.links > 2) {
+                    xpath = getXPath(event.target)
+                    hoverCounts.links = 0
+                    sendSignalData('repetitive_hovering')
+                }
+            }
+            if (htmlTag === 'input') {
+                hoverCounts.input++
+                if (hoverCounts.input > 2) {
+                    xpath = getXPath(event.target)
+                    hoverCounts.input = 0
+                    sendSignalData('repetitive_hovering')
+                }
+            }
+            //console.log(htmlTag)
         }
     })
 })
@@ -355,3 +390,31 @@ var intervalClear = setInterval((function () {
         sendSignalData("mouse_shakes")
     } distance = 0; directionChangeCount = 0; velocity = nextVelocity
 }), interval);
+
+
+// Calculate XPath of the element
+function getXPath(element) {
+    if (element && element.parentNode) {
+        var xpath = getXPath(element.parentNode) + '/' + element.tagName.toLowerCase();
+        var index = getChildIndex(element);
+        if (index > 1) {
+            xpath += '[' + index + ']';
+        }
+        return xpath;
+    } else {
+        return '';
+    }
+}
+
+
+function getChildIndex(element) {
+    var index = 1;
+    var sibling = element.previousElementSibling;
+    while (sibling) {
+        if (sibling.tagName === element.tagName) {
+            index++;
+        }
+        sibling = sibling.previousElementSibling;
+    }
+    return index;
+}
