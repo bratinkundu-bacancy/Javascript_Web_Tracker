@@ -27,7 +27,8 @@ var events = [
     "load",
     "touchstart",
     "touchend",
-    "touchmove"
+    "touchmove",
+    "mouseover"
 ];
 var startTime = Date.now();
 var endTime = startTime + INITIAL_WAIT;
@@ -131,6 +132,7 @@ function sendSignalData(signal_event) {
             pageLoadTime: signal_event === 'excessive_reloads' ? pageLoadTime : 0,
             fisrtPaint: signal_event === 'excessive_reloads' ? fist_contentful_paint : 0,
             xpath: signal_event.includes('click') || signal_event.includes('hover') ? xpath : ''
+
         }
 
         var apiRequestBody = {
@@ -163,7 +165,7 @@ function sendSignalData(signal_event) {
 }
 
 events.forEach(function (e) {
-    document.addEventListener(e, function (event) {
+    window.addEventListener(e, function (event) {
         if (e == 'click') {
             total_click_count++; rage_counter++; consecutive_counter++;
 
@@ -173,32 +175,28 @@ events.forEach(function (e) {
             //console.log("diff", clickTimestamp[RAGE_CLICK_LIMIT], clickTimestamp[0], clickTimestamp[RAGE_CLICK_LIMIT] - clickTimestamp[0])
             /** Condition for Rage Click */
             if (rage_counter >= RAGE_CLICK_LIMIT && (clickTimestamp[RAGE_CLICK_LIMIT - 1] - clickTimestamp[0]) < RAGE_CLICK_THRESHOLD) {
-                console.log("Rage Signal..", rage_counter, clickTimestamp[RAGE_CLICK_LIMIT - 1] - clickTimestamp[0])
+
                 rage_click_count++;
                 rage_counter = 0;
                 //document.getElementById('signal_rage_click').innerHTML = rage_click_count
                 xpath = getXPath(event.target)
-                sendSignalData('rage_click_signal')
+                sendSignalData('frustrated_click')
             }
 
             /** Condition for Consecutive Click */
             if (consecutive_counter >= CONSECUTIVE_CLICK_LIMIT && (clickTimestamp[CONSECUTIVE_CLICK_LIMIT - 1] - clickTimestamp[0]) < CONSECUTIVE_THRESHOLD) {
-                console.log("Consecutive Signal..", consecutive_counter, clickTimestamp[CONSECUTIVE_CLICK_LIMIT - 1] - clickTimestamp[0])
                 consecutive_click_count++;
                 consecutive_counter = 0;
-                // document.getElementById('signal_consecutive_click').innerHTML = consecutive_click_count;
                 xpath = getXPath(event.target)
-                sendSignalData('consecutive_click_signal')
+                sendSignalData('consecutive_click')
             }
 
             /** Condition for Excessive Click */
             if (clickTimestamp.length === EXCESSIVE_CLICK_LIMIT && (clickTimestamp[EXCESSIVE_CLICK_LIMIT - 1] - clickTimestamp[0]) < EXCESSIVE_THRESHOLD) {
-                console.log("excessive")
                 excessive_click_count++;
                 clickTimestamp = [];
-                //document.getElementById('signal_excessive_click').innerHTML = excessive_click_count;
                 xpath = getXPath(event.target)
-                sendSignalData('excessive_click_signal')
+                sendSignalData('excessive_clicks')
             }
 
             /** Condtion to empty the timestamp array */
@@ -207,6 +205,7 @@ events.forEach(function (e) {
             }
         }
         if (e === 'load') {
+            console.log("reloading...")
             if (window.performance.getEntriesByName('first-contentful-paint').length > 0) {
                 fist_contentful_paint = window.performance.getEntriesByName('first-contentful-paint')[0].startTime;
             }
@@ -222,7 +221,7 @@ events.forEach(function (e) {
                     bottom_page_visit_count = 0;
                     scroll_counter++;
                     //document.getElementById('repeated_scroll').innerHTML = scroll_counter;
-                    sendSignalData('repeated_scroll')
+                    sendSignalData('repeated_scrolling')
                 }
             }
         }
