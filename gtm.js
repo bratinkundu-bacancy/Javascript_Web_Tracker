@@ -4,16 +4,20 @@ var INITIAL_WAIT = 3000;
 var INTERVAL_WAIT = 10000;
 var ONE_SECOND = 1000;
 
-console.log(window.dataLayer)
+// console.log(window.dataLayer)
 
-var tableName;
-var config
-for (var i = 0; i < window.dataLayer.length; i++) {
-    if (window.dataLayer[i].hasOwnProperty('tableName')) {
-        tableName = window.dataLayer[i].tableName;
-        break;
-    }
-}
+let scriptParams = document.getElementsByTagName('script')
+scriptParams = scriptParams[scriptParams.length - 1]
+
+//console.log(scriptParams.getAttribute('t'))
+
+var tableName = scriptParams.getAttribute('t');
+// for (var i = 0; i < window.dataLayer.length; i++) {
+//     if (window.dataLayer[i].hasOwnProperty('tableName')) {
+//         tableName = window.dataLayer[i].tableName;
+//         break;
+//     }
+// }
 
 var events = [
     "mouseup",
