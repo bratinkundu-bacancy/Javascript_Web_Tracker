@@ -1,4 +1,4 @@
-var apiUrl = 'https://ds-contentsquare.home.ubix.io/api/real-time-collect'
+var apiUrl = 'https://ubix-data-collector.home.ubix.io/api/real-time-collect'
 
 var INITIAL_WAIT = 3000;
 var INTERVAL_WAIT = 10000;
@@ -6,12 +6,15 @@ var ONE_SECOND = 1000;
 
 // console.log(window.dataLayer)
 
-let scriptParams = document.getElementsByTagName('script')
-scriptParams = scriptParams[scriptParams.length - 1]
+// let scriptParams = document.getElementsByTagName('script')
+// scriptParams = scriptParams[scriptParams.length - 1]
 
 //console.log(scriptParams.getAttribute('t'))
 
-var tableName = scriptParams.getAttribute('t');
+console.log(window.tableName)
+var tableName = window.tableName || 'marketingtag';
+
+//scriptParams.getAttribute('t');
 // for (var i = 0; i < window.dataLayer.length; i++) {
 //     if (window.dataLayer[i].hasOwnProperty('tableName')) {
 //         tableName = window.dataLayer[i].tableName;
