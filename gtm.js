@@ -4,23 +4,9 @@ var INITIAL_WAIT = 3000;
 var INTERVAL_WAIT = 10000;
 var ONE_SECOND = 1000;
 
-// console.log(window.dataLayer)
-
-// let scriptParams = document.getElementsByTagName('script')
-// scriptParams = scriptParams[scriptParams.length - 1]
-
-//console.log(scriptParams.getAttribute('t'))
-
 console.log(window.tableName)
 var tableName = window.tableName || 'marketingtag';
 
-//scriptParams.getAttribute('t');
-// for (var i = 0; i < window.dataLayer.length; i++) {
-//     if (window.dataLayer[i].hasOwnProperty('tableName')) {
-//         tableName = window.dataLayer[i].tableName;
-//         break;
-//     }
-// }
 
 var events = [
     "mouseup",
@@ -57,7 +43,6 @@ var velocity;
 var direction;
 var directionChangeCount = 0;
 var distance = 0;
-var pageTitle = ''
 var pageLoadTime = 0
 var fist_contentful_paint = 0
 var initialZoomDistance = null
@@ -135,7 +120,7 @@ function sendSignalData(signal_event) {
             source: window.location.hostname,
             referrer: document.referrer !== '' & window.location.href !== document.referrer ? document.referrer : '',
             /** New fields addition */
-            pageTitle: pageTitle,
+            pageTitle: document.title,
             pageLoadTime: signal_event === 'excessive_reloads' ? pageLoadTime : 0,
             fisrtPaint: signal_event === 'excessive_reloads' ? fist_contentful_paint : 0,
             xpath: signal_event.includes('click') || signal_event.includes('hover') ? xpath : ''
