@@ -5,8 +5,7 @@ var INTERVAL_WAIT = 10000;
 var ONE_SECOND = 1000;
 
 console.log(window.tableName)
-var tableName = window.tableName || 'marketingtag';
-
+var tableName = window.tn || 'marketingtag';
 
 var events = [
     "mouseup",
