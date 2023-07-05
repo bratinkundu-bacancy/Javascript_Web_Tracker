@@ -4,7 +4,6 @@ var INITIAL_WAIT = 3000;
 var INTERVAL_WAIT = 10000;
 var ONE_SECOND = 1000;
 
-console.log(window.tableName)
 var tableName = window.tn || 'marketingtag';
 
 var events = [
