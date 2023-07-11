@@ -202,6 +202,9 @@ events.forEach(function (e) {
             if (window.performance.getEntriesByType("navigation")[0].type === 'reload') {
                 pageLoadTime = window.performance.timing.domComplete - window.performance.timing.navigationStart
                 sendSignalData('excessive_reloads')
+            }else () {
+                pageLoadTime = window.performance.timing.domComplete - window.performance.timing.navigationStart
+                sendSignalData('page_entry')
             }
         }
         if (e === 'scroll') {
