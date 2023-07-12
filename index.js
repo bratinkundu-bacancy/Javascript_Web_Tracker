@@ -112,7 +112,7 @@ function sendSignalData(signal_event) {
             url: pageUrl,
             timeZone: timezone,
             fingerprint: device_fingerprint,
-            userTimeStamp: new Date().getTime(),
+            userTimeStamp: new Date().toISOString(),
             screenHeight: screenHeight,
             screenWidth: screenWidth,
             os_version: os_version,
@@ -125,8 +125,8 @@ function sendSignalData(signal_event) {
             referrer: document.referrer !== '' & window.location.href !== document.referrer ? document.referrer : '',
             /** New fields addition */
             pageTitle: pageTitle,
-            pageLoadTime: signal_event === 'excessive_reloads' ? pageLoadTime : 0,
-            fisrtPaint: signal_event === 'excessive_reloads' ? fist_contentful_paint : 0,
+            pageLoadTime: signal_event === 'excessive_reloads' || 'page_entry' ? pageLoadTime : 0,
+            fisrtPaint: signal_event === 'excessive_reloads' || 'page_entry' ? fist_contentful_paint : 0,
             xpath: signal_event.includes('click') || signal_event.includes('hover') ? xpath : ''
         }
 
@@ -142,17 +142,17 @@ function sendSignalData(signal_event) {
 
         console.log(`Sending signal... ${signal_event}`, apiRequestBody)
 
-        fetch(apiUrl, {
-            method: 'POST',
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(apiRequestBody),
-        }).then(function (response) {
-            console.log("Signal submitted!", response)
-            console.log(response.json());
-        })
-            .catch(function (error) { console.log("Error", error) })
+        // fetch(apiUrl, {
+        //     method: 'POST',
+        //     headers: {
+        //         "Content-Type": "application/json",
+        //     },
+        //     body: JSON.stringify(apiRequestBody),
+        // }).then(function (response) {
+        //     console.log("Signal submitted!", response)
+        //     console.log(response.json());
+        // })
+        //     .catch(function (error) { console.log("Error", error) })
 
     } catch (error) {
         console.log(error)
@@ -230,6 +230,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (window.performance.getEntriesByType("navigation")[0].type === 'reload') {
                     pageLoadTime = window.performance.timing.domComplete - window.performance.timing.navigationStart
                     sendSignalData('excessive_reloads')
+                }
+                else {
+                    pageLoadTime = window.performance.timing.domComplete - window.performance.timing.navigationStart
+                    sendSignalData('page_entry')
                 }
 
             }

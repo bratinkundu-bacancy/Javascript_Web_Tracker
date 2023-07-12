@@ -106,7 +106,7 @@ function sendSignalData(signal_event) {
             url: pageUrl,
             timeZone: timezone,
             fingerprint: device_fingerprint,
-            userTimeStamp: new Date().getTime(),
+            userTimeStamp: new Date().toISOString(),
             screenHeight: screenHeight,
             screenWidth: screenWidth,
             os_version: os_version,
@@ -119,8 +119,8 @@ function sendSignalData(signal_event) {
             referrer: document.referrer !== '' & window.location.href !== document.referrer ? document.referrer : '',
             /** New fields addition */
             pageTitle: document.title,
-            pageLoadTime: signal_event === 'excessive_reloads' ? pageLoadTime : 0,
-            fisrtPaint: signal_event === 'excessive_reloads' ? fist_contentful_paint : 0,
+            pageLoadTime: signal_event === 'excessive_reloads' || 'page_entry' ? pageLoadTime : 0,
+            fisrtPaint: signal_event === 'excessive_reloads' || 'page_entry' ? fist_contentful_paint : 0,
             xpath: signal_event.includes('click') || signal_event.includes('hover') ? xpath : ''
 
         }
@@ -202,7 +202,7 @@ events.forEach(function (e) {
             if (window.performance.getEntriesByType("navigation")[0].type === 'reload') {
                 pageLoadTime = window.performance.timing.domComplete - window.performance.timing.navigationStart
                 sendSignalData('excessive_reloads')
-            }else {
+            } else {
                 pageLoadTime = window.performance.timing.domComplete - window.performance.timing.navigationStart
                 sendSignalData('page_entry')
             }
