@@ -67,8 +67,8 @@ var timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 var screenHeight = window.screen.availHeight
 var screenWidth = window.screen.availWidth
 var os_version = window.navigator.platform
-var browser_full_version = parseFloat(window.navigator.appVersion)
-var browser_major_version = parseInt(navigator.appVersion)
+var browser_full_version = ''
+var browser_major_version = ''
 var screenOrientation = screen.orientation.type
 var mobileKeywords = ["mobile", "android", "iphone", "ipod", "ipad", "windows phone"];
 var userAgent = navigator.userAgent.toLowerCase();
@@ -83,15 +83,30 @@ function getBrowserName() {
     var browserName;
 
     if (userAgent.match(/chrome|chromium|crios/i)) {
-        browserName = "chrome";
+        browserName = "Chrome";
+        browser_full_version = browserName +' '+ navigator.userAgent.split('Chrome/')[1].split(' ')[0]
+        browser_major_version = navigator.userAgent.split('Chrome/')[1].split(' ')[0].split('.')[0]
+        
     } else if (userAgent.match(/firefox|fxios/i)) {
-        browserName = "firefox";
+        browserName = "Firefox";
+        browser_full_version = browserName +' '+ navigator.userAgent.split('Firefox/')[1].split(' ')[0]
+        browser_major_version = navigator.userAgent.split('Firefox/')[1].split(' ')[0].split('.')[0]
+    
     } else if (userAgent.match(/safari/i)) {
-        browserName = "safari";
+        browserName = "Safari";
+        browser_full_version = browserName +' '+ navigator.userAgent.split('Safari/')[1].split(' ')[0]
+        browser_major_version = navigator.userAgent.split('Safari/')[1].split(' ')[0].split('.')[0]
+        
     } else if (userAgent.match(/opr\//i)) {
-        browserName = "opera";
+        browserName = "Opera";
+        browser_full_version = browserName +' '+ navigator.userAgent.split('OPR/')[1].split(' ')[0]
+        browser_major_version = navigator.userAgent.split('OPR/')[1].split(' ')[0].split('.')[0]
+        
     } else if (userAgent.match(/edg/i)) {
-        browserName = "edge";
+        browserName = "Edge";
+        browser_full_version = browserName +' '+ navigator.userAgent.split('Edg/')[1].split(' ')[0]
+        browser_major_version = navigator.userAgent.split('Edg/')[1].split(' ')[0].split('.')[0]
+        
     } else {
         browserName = "unknown";
     }
@@ -100,6 +115,7 @@ function getBrowserName() {
 
 
 function sendSignalData(signal_event) {
+    var brName = getBrowserName();
     try {
         var signalData = {
             event: signal_event,
@@ -110,7 +126,7 @@ function sendSignalData(signal_event) {
             screenHeight: screenHeight,
             screenWidth: screenWidth,
             os_version: os_version,
-            browser: getBrowserName(),
+            browser: brName,
             browser_full_version: browser_full_version,
             browser_major_version: browser_major_version,
             screenOrientation: screenOrientation,
@@ -119,8 +135,8 @@ function sendSignalData(signal_event) {
             referrer: document.referrer !== '' & window.location.href !== document.referrer ? document.referrer : '',
             /** New fields addition */
             pageTitle: document.title,
-            pageLoadTime: signal_event === 'excessive_reloads' || 'page_entry' ? pageLoadTime : 0,
-            fisrtPaint: signal_event === 'excessive_reloads' || 'page_entry' ? fist_contentful_paint : 0,
+            pageLoadTime: signal_event === ('excessive_reloads' || 'page_entry') ? pageLoadTime : 0,
+            fisrtPaint: signal_event === ('excessive_reloads' || 'page_entry') ? fist_contentful_paint : 0,
             xpath: signal_event.includes('click') || signal_event.includes('hover') ? xpath : ''
 
         }
