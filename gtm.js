@@ -135,8 +135,8 @@ function sendSignalData(signal_event) {
             referrer: document.referrer !== '' & window.location.href !== document.referrer ? document.referrer : '',
             /** New fields addition */
             pageTitle: document.title,
-            pageLoadTime: signal_event === ('excessive_reloads' || 'page_entry') ? pageLoadTime : 0,
-            fisrtPaint: signal_event === ('excessive_reloads' || 'page_entry') ? fist_contentful_paint : 0,
+            pageLoadTime: (signal_event === 'excessive_reloads' || signal_event === 'page_entry') ? pageLoadTime : 0,
+            fisrtPaint: (signal_event === 'excessive_reloads' || signal_event === 'page_entry') ? fist_contentful_paint : 0,
             xpath: signal_event.includes('click') || signal_event.includes('hover') ? xpath : ''
 
         }
@@ -214,15 +214,15 @@ events.forEach(function (e) {
             console.log("reloading...")
             console.log(window.performance.getEntriesByName('first-contentful-paint'))
             if (window.performance.getEntriesByName('first-contentful-paint').length > 0) {
-                console.log("Inside the first paint")
                 fist_contentful_paint = window.performance.getEntriesByName('first-contentful-paint')[0].startTime;
+                console.log("Inside the first paint",fist_contentful_paint)
             }
             if (window.performance.getEntriesByType("navigation")[0].type === 'reload') {
                 pageLoadTime = window.performance.timing.domComplete - window.performance.timing.navigationStart
                 sendSignalData('excessive_reloads')
             } else {
                 pageLoadTime = window.performance.timing.domComplete - window.performance.timing.navigationStart
-                console.log("Inside the first load")
+                console.log("Inside the first load", pageLoadTime)
                 console.log(window.performance.timing.domComplete , window.performance.timing.navigationStart)
                 sendSignalData('page_entry')
             }
