@@ -212,7 +212,7 @@ events.forEach(function (e) {
         }
         if (e === 'load') {
             console.log("reloading...")
-            console.log(window.performance)
+            console.log(window.performance.getEntriesByName('first-contentful-paint'))
             if (window.performance.getEntriesByName('first-contentful-paint').length > 0) {
                 fist_contentful_paint = window.performance.getEntriesByName('first-contentful-paint')[0].startTime;
             }
