@@ -214,6 +214,7 @@ events.forEach(function (e) {
             console.log("reloading...")
             console.log(window.performance.getEntriesByName('first-contentful-paint'))
             if (window.performance.getEntriesByName('first-contentful-paint').length > 0) {
+                console.log("Inside the first paint")
                 fist_contentful_paint = window.performance.getEntriesByName('first-contentful-paint')[0].startTime;
             }
             if (window.performance.getEntriesByType("navigation")[0].type === 'reload') {
@@ -221,6 +222,8 @@ events.forEach(function (e) {
                 sendSignalData('excessive_reloads')
             } else {
                 pageLoadTime = window.performance.timing.domComplete - window.performance.timing.navigationStart
+                console.log("Inside the first load")
+                console.log(window.performance.timing.domComplete , window.performance.timing.navigationStart)
                 sendSignalData('page_entry')
             }
         }
