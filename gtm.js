@@ -1,10 +1,13 @@
-var apiUrl = 'https://ubix-data-collector.home.ubix.io/api/real-time-collect'
+var apiUrl = 'https://ubix-data-collector.home.ubix.io/api/upload'
 
 var INITIAL_WAIT = 3000;
 var INTERVAL_WAIT = 10000;
 var ONE_SECOND = 1000;
 
 var tableName = window.tn || 'marketingtag';
+var baseUrl = window.url || '';
+var accessToken = window.tkn || 'dataSpace@ubix.com';
+var appKey = window.ak || 'dataSpace';
 
 var events = [
     "mouseup",
@@ -145,8 +148,8 @@ function sendSignalData(signal_event) {
             tableName: tableName,
             data: [signalData],
             clientInfo: {
-                appKey: "dataSpace",
-                accessToken: "dataSpace@ubix.com",
+                appKey: appKey,
+                accessToken: accessToken,
                 timeStamp: new Date().getTime()
             }
         }
